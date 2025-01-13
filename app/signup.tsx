@@ -6,12 +6,13 @@ import {
   Text,
   Dimensions,
   Alert,
+  BackHandler,
 } from "react-native";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { Button, HelperText, TextInput } from "react-native-paper";
 import React, { useState } from "react";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { signUpUser } from "@/Services/userService";
 import axios from "axios";
 import GoogleLogin from "@/components/GoogleLogin";
@@ -30,11 +31,32 @@ export default function SignUp() {
   const [userNameError, setUserNameError] = useState("");
   const [isPasswordVisible, setPasswordVisible] = useState(false);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        // Prevent back navigation
+        return true; // Returning true prevents back navigation
+      };
+
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        onBackPress
+      );
+
+      return () => {
+        subscription.remove(); // Cleanup on unmount
+      };
+    }, [])
+  );
+
   // Validation functions
   const validateEmail = (email: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const validatePassword = (password: string) =>
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{6,}$/.test(password);
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d!@#$%^&*()_+={}\[\]:;"'<>,.?/\\|`~-]{6,}$/.test(
+      password
+    );
+
   const validateUserName = (userName: string) => userName.length >= 3;
 
   // Input change handlers with space restriction
@@ -57,7 +79,7 @@ export default function SignUp() {
   };
 
   const handleUserNameChange = (userName: string) => {
-    const trimmedUserName = userName.replace(/\s/g, "");
+    const trimmedUserName = userName;
     setUserName(trimmedUserName);
     setUserNameError(
       validateUserName(trimmedUserName)
@@ -105,24 +127,25 @@ export default function SignUp() {
       contentContainerStyle={styles.contentContainer}
     >
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="subtitle" style={{ color: "#027bad" }}>
-          Let's get started!
-        </ThemedText>
-        <ThemedText type="default" style={{ fontSize: 13 }}>
+        <ThemedText type="default" style={{ fontSize: 13, color: "white" }}>
           Create your new account
         </ThemedText>
       </ThemedView>
 
       <View style={styles.inputContainer}>
         <TextInput
-          label="Name"
+          // label="Name"
+          placeholder="Name"
+          textColor="white"
           value={userName}
           mode="outlined"
+          placeholderTextColor={"white"}
+          theme={{ roundness: 20 }}
           onChangeText={handleUserNameChange}
           keyboardType="default"
           autoCapitalize="none"
           style={styles.textInput}
-          right={<TextInput.Icon color={"#027bad"} icon="account" />}
+          right={<TextInput.Icon color={"#6846f3"} icon="account" />}
         />
         <HelperText type="error" visible={userNameError ? true : false}>
           {userNameError}
@@ -131,14 +154,18 @@ export default function SignUp() {
 
       <View style={styles.inputContainer}>
         <TextInput
-          label="Email"
+          // label="Email"
+          placeholder="Email"
+          textColor="white"
           value={email}
           mode="outlined"
+          placeholderTextColor={"white"}
+          theme={{ roundness: 20 }}
           onChangeText={handleEmailChange}
           keyboardType="email-address"
           autoCapitalize="none"
           style={styles.textInput}
-          right={<TextInput.Icon color={"#027bad"} icon="email" />}
+          right={<TextInput.Icon color={"#6846f3"} icon="email" />}
         />
         <HelperText type="error" visible={emailError ? true : false}>
           {emailError}
@@ -147,15 +174,19 @@ export default function SignUp() {
 
       <View style={styles.inputContainer}>
         <TextInput
-          label="Password"
+          // label="Password"
+          placeholder="Password"
+          textColor="white"
           mode="outlined"
           value={password}
+          placeholderTextColor={"white"}
+          theme={{ roundness: 20 }}
           onChangeText={handlePasswordChange}
           secureTextEntry={!isPasswordVisible} // Toggle visibility
           style={styles.textInput}
           right={
             <TextInput.Icon
-              color={"#027bad"}
+              color={"#6846f3"}
               icon={isPasswordVisible ? "eye-off" : "eye"} // Change icon based on state
               onPress={() => setPasswordVisible(!isPasswordVisible)} // Toggle state
             />
@@ -166,7 +197,7 @@ export default function SignUp() {
         </HelperText>
       </View>
 
-      <View style={styles.inputContainer}>
+      <View style={{ ...styles.inputContainer, marginBottom: 5 }}>
         <Button
           icon="arrow-right"
           mode="contained"
@@ -182,17 +213,17 @@ export default function SignUp() {
         </Button>
       </View>
       <View style={styles.inputContainer}>
-        <GoogleLogin name='Sign up with google'/>
+        <GoogleLogin name="Sign up with " />
       </View>
 
       <View style={styles.inputContainer}>
         <Button
           mode="text"
           onPress={() => router.push("/login")}
-          textColor="#111"
+          textColor="grey"
         >
           Already have an account?{" "}
-          <Text style={{ color: "#027bad" }}>Sign in</Text>
+          <Text style={{ color: "#6846f3" }}>Sign in</Text>
         </Button>
       </View>
     </ScrollView>
@@ -201,22 +232,24 @@ export default function SignUp() {
 
 const styles = StyleSheet.create({
   safeArea: {
-    flex: 1,
+    // flex: 1,
   },
   container: {
-    flex: 1,
-    backgroundColor: "#ffbc38",
+    // flex: 1,
+    // gap:0,
+    backgroundColor: "#1A1A24",
   },
   contentContainer: {
     flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
+    gap: 1,
     padding: width * 0.04,
   },
   titleContainer: {
     flexDirection: "column",
     justifyContent: "center",
-    backgroundColor: "#ffbc38",
+    backgroundColor: "#",
     alignItems: "center",
     //   gap: height * 0.02,
     marginBottom: height * 0.04,
@@ -227,13 +260,13 @@ const styles = StyleSheet.create({
   inputContainer: {
     width: "90%", // Set a percentage width for responsiveness
     paddingHorizontal: width * 0.03,
-    marginBottom: height * 0.01,
+    // marginBottom: height * 0.01,
   },
   textInput: {
-    backgroundColor: "white",
+    backgroundColor: "transparent",
     fontSize: scaleFont(16),
-    borderColor:'#027bad',
-
+    borderColor: "#6846f3",
+    color: "white",
   },
   errorText: {
     color: "red",
@@ -243,6 +276,6 @@ const styles = StyleSheet.create({
   },
   buttonContent: {
     flexDirection: "row-reverse",
-    backgroundColor: "#027bad",
+    backgroundColor: "#6846f3",
   },
 });

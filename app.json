@@ -1,25 +1,27 @@
 {
   "expo": {
-    "name": "quizz",
+    "name": "Hyper",
     "slug": "quizz",
-    "owner": "ujual.k",
+    "owner": "adlerdas",
+    "newArchEnabled": true,
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "icon": "./assets/images/hyperlogo.png",
+    "scheme": "hyperapp",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/images/splash.png",
+    "splash": { 
+      "image": "./assets/images/hyperlogo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1A1A24"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hyper"
     },
     "android": {
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/hyperlogo.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.hyper"
@@ -27,12 +29,9 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/hyperlogo.png"
     },
-    "plugins": [
-      "expo-router",
-      "expo-font"
-    ],
+    "plugins": ["expo-router", "expo-font"],
     "experiments": {
       "typedRoutes": true
     },
@@ -46,3 +45,4 @@
     }
   }
 }
+

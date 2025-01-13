@@ -9,7 +9,7 @@ import {
 import ParallaxScrollView from "@/components/ParallaxScrollView";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
-import { Button, Text } from "react-native-paper";
+import { Button, Surface, Text } from "react-native-paper";
 import { useRouter } from "expo-router";
 import Heading from "@/components/Heading";
 import { LinearGradient } from "expo-linear-gradient";
@@ -100,57 +100,10 @@ export default function Reward() {
   const [quizId, setId] = useState<string>("");
   const [statitics, setStatitics] = useState<any>("");
 
-  const renderQuizzItem = ({ item }: any) => (
-    <TouchableOpacity
-      style={gridStyle.pressable}
-      onPress={() =>
-        router.push({
-          pathname: "/leaderboard/[id]" as any,
-          params: { id: item.assessment._id },
-        })
-      }
-    >
-      <View style={gridStyle.gridItem}>
-        <ImageBackground
-          source={{
-            uri:
-              item.category === "live"
-                ? "https://img.freepik.com/free-vector/stylish-think-ask-question-mark-concept-template-design_1017-50389.jpg?t=st=1731916140~exp=1731919740~hmac=3005b0bfb66e496f48fc1786a84b5fc6801a59ed75cf102a36d275b2cdeaf846&w=740"
-                : "https://img.freepik.com/free-vector/stylish-faq-symbol-fluid-background-think-ask-doubt-vector_1017-45804.jpg?ga=GA1.1.563629714.1713778942&semt=ais_hybrid",
-          }}
-          style={gridStyle.image}
-        >
-          {/* Gradient overlay */}
-          <LinearGradient
-            colors={["transparent", "rgba(0, 0, 0, 0.8)"]}
-            style={gridStyle.gradient}
-          />
-
-          {/* Title at the bottom */}
-          <View style={gridStyle.textContainer}>
-            <Text style={gridStyle.itemText}>{item.assessment.name}</Text>
-            {/* <Text
-          style={{ marginTop: 2, color: "white", textAlign: "center" }}
-          variant="bodyMedium"
-        >
-          Category:{item.category}
-        </Text> */}
-            <Text
-              style={{ marginTop: 2, color: "white", textAlign: "center" }}
-              variant="bodyMedium"
-            >
-              Difficulty:{item.difficulty}
-            </Text>
-          </View>
-        </ImageBackground>
-      </View>
-    </TouchableOpacity>
-  );
-
   useEffect(() => {
     (async () => {
       try {
-        const response = await getPreviousQuiz(logout);
+        const response = await getPreviousQuiz();
         console.log("quiz data");
         console.log(response);
         console.log("response");
@@ -170,67 +123,146 @@ export default function Reward() {
     <ParallaxScrollView
       headerBackgroundColor={{ light: "#A1CEDC", dark: "#1D3D47" }}
       marginTopProp={0}
+      background="#1A1A24"
       headerImage={
         <Image
           source={{
-            uri: "https://img.freepik.com/free-vector/gradient-black-background-with-realistic-elements_23-2149149343.jpg?ga=GA1.1.563629714.1713778942&semt=ais_hybrid",
+            uri: "https://img.freepik.com/premium-photo/gift-box-with-ribbon-black-background-minimal-concept-3d-rendering_39972-380.jpg?ga=GA1.1.1269269984.1718091501&semt=ais_hybrid",
           }}
           style={styles.topImage}
         />
       }
     >
-      <Heading title="Statitics" />
-      {/* <FlatList
-        data={categoryData}
-        renderItem={renderCategoryItem}
-        keyExtractor={(item) => item.title}
-        numColumns={3} // Adjust this number for the desired number of columns
-        // contentContainerStyle={styles.grid}
-        scrollEnabled={false}
-      /> */}
-      <View
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <View style={styles.gridItem}>
-          <Text style={styles.itemText1} variant="headlineSmall">
-            {statitics.totalQuizzes}
-          </Text>
-          <Text style={styles.itemText} variant="bodySmall">
-            Total Quizzes Played
+      <View style={styles.container}>
+        <View style={{ marginTop: 20 }}>
+          <Text variant="headlineSmall" style={styles.title}>
+            Rewards
           </Text>
         </View>
-        <View style={styles.gridItem}>
-          <Text style={styles.itemText1} variant="headlineSmall">
-            {statitics?.totalQuestionsAnswerd}
-          </Text>
-          <Text style={styles.itemText} variant="bodySmall">
-            Total Questions Answered
-          </Text>
-        </View>
-        <View style={styles.gridItem}>
-          <Text style={styles.itemText1} variant="headlineSmall">
-            {statitics?.correctQuestionsAnswerd}
-          </Text>
-          <Text style={styles.itemText} variant="bodySmall">
-            Correct Questions Answered
-          </Text>
-        </View>
-      </View>
 
-      <Heading title="Previous Quizzes" />
-      <FlatList
-        data={quizData.length > 0 && quizData}
-        renderItem={renderQuizzItem}
-        keyExtractor={(item) => item._id}
-        numColumns={2} // Adjust this number for the desired number of columns
-        // contentContainerStyle={gridStyle.grid}
-        scrollEnabled={false}
-      />
+        {/* <View
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <View style={styles.gridItem}>
+            <Text style={styles.itemText1} variant="headlineSmall">
+              {statitics?.totalQuizzes || 0}
+            </Text>
+            <Text style={styles.itemText} variant="bodySmall">
+              Total Quizzes Played
+            </Text>
+          </View> 
+          <View style={styles.gridItem}>
+            <Text style={styles.itemText1} variant="headlineSmall">
+              {statitics?.totalQuestionsAnswerd || 0}
+            </Text>
+            <Text style={styles.itemText} variant="bodySmall">
+              Total Questions Answered
+            </Text>
+          </View>
+          <View style={styles.gridItem}>
+            <Text style={styles.itemText1} variant="headlineSmall">
+              {statitics?.correctQuestionsAnswerd || 0}
+            </Text>
+            <Text style={styles.itemText} variant="bodySmall">
+              Correct Questions Answered
+            </Text>
+          </View>
+        </View> */}
+
+        <View
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "center",
+            alignItems: "center",
+            width: "100%",
+          }}
+        >
+          <View style={styles.gridItem}>
+            <Text style={styles.itemText1} variant="headlineMedium">
+              {statitics?.totalpointsCollected
+                ? statitics.totalpointsCollected.toFixed()
+                : 0}
+            </Text>
+            <Text style={styles.itemText} variant="bodySmall">
+              Total Points
+            </Text>
+          </View>
+        </View>
+        <Surface
+          elevation={2}
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            margin: 10,
+            padding: 15,
+            borderRadius: 10,
+            backgroundColor: "black",
+          }}
+        >
+          <Text style={styles.itemText}>Correct Questions Answered</Text>
+          <Text style={styles.itemText1}>
+            {statitics?.correctQuestionsAnswerd || 0}
+          </Text>
+        </Surface>
+        <Surface
+          elevation={2}
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            margin: 10,
+            padding: 15,
+            borderRadius: 10,
+            backgroundColor: "black",
+          }}
+        >
+          <Text style={styles.itemText}>Total Questions Answered</Text>
+          <Text style={styles.itemText1}>
+            {statitics?.totalQuestionsAnswerd || 0}
+          </Text>
+        </Surface>
+        <Surface
+          elevation={2}
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            margin: 10,
+            padding: 15,
+            borderRadius: 10,
+            backgroundColor: "black",
+          }}
+        >
+          <Text style={styles.itemText}>Total Quizzes Played</Text>
+          <Text style={styles.itemText1}> {statitics?.totalQuizzes || 0}</Text>
+        </Surface>
+
+        {/* <Heading title="Previous Quizzes" />
+        {quizData.length > 0 ? (
+          <FlatList
+            data={quizData.length > 0 && quizData}
+            renderItem={renderQuizzItem}
+            keyExtractor={(item) => item._id}
+            numColumns={2} // Adjust this number for the desired number of columns
+            // contentContainerStyle={gridStyle.grid}
+            scrollEnabled={false}
+          />
+        ) : (
+          <Text style={{ textAlign: "center", marginTop: 50 }}>
+            Ready to Make History? Attempt Your First Quiz!
+          </Text>
+        )} */}
+      </View>
     </ParallaxScrollView>
   );
 }
@@ -243,8 +275,26 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  container: {
+    flex: 1,
+    fontFamily: "SairaStencilOne",
+    // padding: 16,
+    backgroundColor: "#1A1A24", // Background color for the page
+  },
   button: {
     backgroundColor: "#e8e8e8",
+  },
+  title: {
+    textAlign: "center",
+    marginBottom: 5,
+    fontFamily: "SairaStencilOne",
+    fontWeight: "bold",
+    color: "#ffe600", // Gold color for a standout effect
+    textTransform: "uppercase", // Converts text to uppercase for a bold look
+    letterSpacing: 2, // Adds spacing between letters
+    textShadowColor: "rgba(0, 0, 0, 0.5)", // Shadow for depth
+    textShadowOffset: { width: 2, height: 2 }, // Shadow offset
+    textShadowRadius: 3, // Shadow blur radius
   },
   topImage: {
     height: 200,
@@ -258,62 +308,32 @@ const styles = StyleSheet.create({
   },
 
   gridItem: {
-    flexBasis: "33.3%", // Ensures each item takes up 1/4 of the row width
-    flexGrow: 0, // Prevents items from expanding
-    padding: 10,
+    // flexBasis: "100%", // Ensures each item takes up 1/4 of the row width
+    // flexGrow: 0, // Prevents items from expanding
+    padding: 30,
     alignItems: "center",
-    justifyContent: "flex-start",
-    borderRadius: 8,
+    justifyContent: "center",
+    borderRadius: 20,
+    height: 100,
     overflow: "hidden",
+    borderWidth: 2,
+    borderColor: "#ffe600",
+    margin: 10,
   },
   image: {
     width: "100%", // Full width within the grid item
     aspectRatio: 1, // Keeps it square
   },
   itemText: {
-    color: "#027bad",
+    color: "white",
     fontWeight: "700",
-    marginTop: 8,
     textAlign: "center",
   },
   itemText1: {
-    // color: "#0",
+    color: "#ffe600",
     fontWeight: "700",
-    marginTop: 8,
     textAlign: "center",
   },
 });
 
-const gridStyle = StyleSheet.create({
-  pressable: {
-    flex: 1,
-  },
-  gridItem: {
-    flexBasis: "50%", // Adjust based on desired column layout
-    flexGrow: 0,
-    padding: 10,
-    borderRadius: 8,
-    overflow: "hidden",
-  },
-  image: {
-    width: "100%",
-    height: 150, // Adjust the height based on design needs
-    justifyContent: "flex-end", // Ensures title is positioned at the bottom
-  },
-  gradient: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 8,
-  },
-  textContainer: {
-    position: "absolute",
-    bottom: 10,
-    left: 10,
-    right: 10,
-  },
-  itemText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 14,
-    textAlign: "center",
-  },
-});
+

@@ -1,13 +1,14 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+// Logout.js
+import * as SecureStore from 'expo-secure-store';
+import { useRouter } from 'expo-router';
 
-// Accept a `navigateToLogin` function as an argument
-export const logout = async (navigateToLogin: () => void) => {
+export const handleLogout = async (router:any) => {
   try {
-    await AsyncStorage.removeItem("accessToken");
-    await AsyncStorage.removeItem("userName");
-    console.log("Values cleared from storage");
-    navigateToLogin(); // Call the navigation function after clearing
+    await SecureStore.deleteItemAsync('refreshToken');
+    await SecureStore.deleteItemAsync('accessToken');
+    await SecureStore.deleteItemAsync('userName');
+    router.push("/login"); // Navigate to the login page
   } catch (error) {
-    console.error("Error clearing values:", error);
+    console.error("Error during logout:", error);
   }
 };

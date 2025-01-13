@@ -4,66 +4,56 @@ import {
   View,
   FlatList,
   ImageBackground,
-  Pressable,
   TouchableOpacity,
   Modal,
+  BackHandler,
 } from "react-native";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
-import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
-import { Button, Divider, Menu, Provider, Text } from "react-native-paper";
-import { router, useRouter } from "expo-router";
+import Svg, { Path } from "react-native-svg";
+import {
+  Banner,
+  Button,
+  Divider,
+  Icon,
+  IconButton,
+  Menu,
+  Provider,
+  Surface,
+  Text,
+} from "react-native-paper";
+import { useFocusEffect, useRouter } from "expo-router";
 import Heading from "@/components/Heading";
 import { LinearGradient } from "expo-linear-gradient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useState } from "react";
-import { logout } from "@/constants/Logout";
+import React, { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/Context/AuthContext";
-import { getAllQuiz } from "@/Services/quizService";
+import { getAllQuiz, getPreviousQuiz } from "@/Services/quizService";
+import { BASE_URL } from "@/constants/config";
+import { handleLogout } from "@/constants/Logout";
+import BannerComponent from "@/components/BannerComponent";
+import QuizDrawer from "@/components/QuizDrawer";
+import SearchScrollView from "@/components/SearchScrollView";
+import RewardDrawer from "@/components/RewardDrawer";
 
 const categoryData = [
   {
-    title: "All Quizzes",
+    title: "All",
     category: "all",
-    image:
-      "https://cdn-icons-png.freepik.com/256/5334/5334695.png?ga=GA1.1.563629714.1713778942&semt=ais_hybrid",
+    image: require("../../assets/images/all1.png"), // Use static require for local images
+    active: require("../../assets/images/all2.png"),
   },
   {
-    title: "Live Quizzes",
+    title: "Live",
     category: "live",
-    image:
-      "https://cdn-icons-png.freepik.com/256/11301/11301463.png?ga=GA1.1.563629714.1713778942&semt=ais_hybrid",
+    image: require("../../assets/images/live1.png"),
+    active: require("../../assets/images/live2.png"),
   },
   {
-    title: "Practice Quizzes",
+    title: "Practice",
     category: "practice",
-    image:
-      "https://cdn-icons-png.freepik.com/256/2586/2586750.png?ga=GA1.1.563629714.1713778942&semt=ais_hybrid",
+    image: require("../../assets/images/practice1.png"),
+    active: require("../../assets/images/practice2.png"),
   },
 ];
-
-// const quizzData = [
-//   {
-//     title: "3",
-//     image:
-//       "data:image/png;base64,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",
-//   },
-//   {
-//     title: "2",
-//     image:
-//       "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTemX8BlwnxjDR-MJl72mYahJhY0PnrbUaETA&s",
-//   },
-//   {
-//     title: "1",
-//     image:
-//       "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSssjLV2HMg2sS4GRW5UenCA3_BpYHEbD2OpQ&s",
-//   },
-//   {
-//     title: "4",
-//     image:
-//       "data:image/png;base64,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",
-//   },
-// ];
 
 function timeFromNow(time: string): string {
   const timeInMillis = new Date(time).getTime();
@@ -84,62 +74,139 @@ function timeFromNow(time: string): string {
 
 export default function HomeScreen() {
   const router = useRouter();
-
   const { userName, accessToken, logout } = useAuth();
-
   const [quizData, setQuizData] = useState<any>([]);
   const [quizCategory, setQuizCategory] = useState<string>("all");
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDifficulty, setSelectedDifficulty] = useState("");
+  const [appIsReady, setAppIsReady] = useState<boolean>(false);
+  const [buttonText, setButtonText] = useState("Easy"); // Start with "Easy"
+  const [statitics, setStatitics] = React.useState<any>(null);
+  const [showQuizzes, setShowQuizzes] = React.useState<boolean>(false);
+  const [showReward, setShowReward] = React.useState<boolean>(false);
+  const [isViewAll, setIsViewAll] = React.useState<boolean>(false);
+  const [searchText, setSearchText] = React.useState<string>("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const response = await getPreviousQuiz();
+        if (response) {
+          setStatitics(response.data.rewardData);
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    })();
+  }, []);
 
   const handleSelect = (difficulty: string) => {
     setSelectedDifficulty(difficulty);
     setModalVisible(false); // Close the modal after selection
   };
 
+
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        // Prevent back navigation
+        return true; // Returning true prevents back navigation
+      };
+
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        onBackPress
+      );
+
+      return () => {
+        subscription.remove(); // Cleanup on unmount
+      };
+    }, [])
+  );
+
+
+
   useEffect(() => {
     (async () => {
       try {
+        setAppIsReady(false);
         const response = await getAllQuiz(
           logout,
           quizCategory,
-          selectedDifficulty
+          selectedDifficulty,
+          searchText
         );
-        console.log("quiz data");
-        console.log(response);
-        console.log("response");
+
         if (response) {
           setQuizData(response.data);
+          setIsViewAll(false);
+          setAppIsReady(true);
         }
       } catch (error) {
         console.log(error);
       }
     })();
-  }, [quizCategory, selectedDifficulty]);
+  }, [quizCategory, selectedDifficulty, searchText]);
+
+  const maxVisibleItems = 6;
 
   const renderCategoryItem = ({ item }: any) => (
     <TouchableOpacity
       style={styles.gridItem}
-      onPress={() => setQuizCategory(item.category)}
+      onPress={() => setQuizCategory(item.category)} // This updates the state
     >
-      <View>
-        <Image source={{ uri: item.image }} style={styles.image} />
-        <Text
+      <Surface
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          width: "100%",
+          margin: 0,
+          paddingVertical: 10,
+          paddingHorizontal: 20,
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: "#6846f3",
+          backgroundColor:
+            item.category === quizCategory ? "#6846f3" : "transparent",
+        }}
+        elevation={0}
+      >
+        <View
           style={{
-            ...styles.itemText,
-            color: item.category === quizCategory ? "#ffbc38" : "",
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 4,
           }}
-          variant="bodySmall"
         >
-          {item.title}
-        </Text>
-      </View>
+          <Image
+            style={{
+              height: 15,
+              width: 15,
+            }}
+            source={item.category === quizCategory ? item.active : item.image}
+          />
+          <Text
+            style={{
+              ...styles.itemText,
+              color: item.category === quizCategory ? "#fff" : "#6846f3", // Change color based on selection
+            }}
+            variant="bodySmall"
+          >
+            {item.title}
+          </Text>
+        </View>
+      </Surface>
     </TouchableOpacity>
   );
 
-  const renderQuizzItem = ({ item }: any) => (
+  const renderAssessmentItem = ({ item }: any) => (
     <TouchableOpacity
-      style={gridStyle.pressable}
+      // style={gridStyle.pressable}
+      style={{ width: 95, marginRight: 10 }}
       onPress={() =>
         router.push({
           pathname: "/instruction/[id]" as any,
@@ -147,226 +214,372 @@ export default function HomeScreen() {
         })
       }
     >
-      <View style={gridStyle.gridItem}>
+      <Surface style={gridStyle.gridItem}>
         <ImageBackground
           source={{
-            uri:
-              item.category === "live"
-                ? "https://img.freepik.com/free-vector/stylish-think-ask-question-mark-concept-template-design_1017-50389.jpg?t=st=1731916140~exp=1731919740~hmac=3005b0bfb66e496f48fc1786a84b5fc6801a59ed75cf102a36d275b2cdeaf846&w=740"
-                : "https://img.freepik.com/free-vector/stylish-faq-symbol-fluid-background-think-ask-doubt-vector_1017-45804.jpg?ga=GA1.1.563629714.1713778942&semt=ais_hybrid",
+            uri: item.image
+              ? `${BASE_URL}/quiz/${item.image}`
+              : item.category === "live"
+              ? "https://img.freepik.com/free-vector/stylish-think-ask-question-mark-concept-template-design_1017-50389.jpg?t=st=1731916140~exp=1731919740~hmac=3005b0bfb66e496f48fc1786a84b5fc6801a59ed75cf102a36d275b2cdeaf846&w=740"
+              : "https://img.freepik.com/free-vector/stylish-faq-symbol-fluid-background-think-ask-doubt-vector_1017-45804.jpg?ga=GA1.1.563629714.1713778942&semt=ais_hybrid",
           }}
           style={gridStyle.image}
         >
           {/* Gradient overlay */}
           <LinearGradient
-            colors={["transparent", "rgba(0, 0, 0, 0.8)"]}
+            colors={["transparent", "rgba(0, 0, 0, 0.4)"]}
             style={gridStyle.gradient}
           />
 
           {/* Title at the bottom */}
           <View style={gridStyle.textContainer}>
-            {/* <Text style={gridStyle.itemText}>Daily Activity</Text> */}
-            <Text style={gridStyle.itemText}>{item?.name}</Text>
+            <Text style={gridStyle.itemText} variant="bodySmall">
+              {item?.name}
+            </Text>
             <Text
-              style={{ marginTop: 2, color: "white", textAlign: "center" }}
+              style={{
+                marginTop: 2,
+                color: "white",
+                textAlign: "center",
+                fontSize: 10,
+              }}
               variant="bodySmall"
             >
               {timeFromNow(item.createdAt)}
             </Text>
           </View>
         </ImageBackground>
-      </View>
+      </Surface>
     </TouchableOpacity>
   );
 
+  const renderQuizCategory = ({ item, color = "black" }: any) => (
+    <View style={{ marginBottom: 20 }}>
+      <Text
+        variant="bodyMedium"
+        style={{
+          fontWeight: "bold",
+          marginLeft: 13,
+          color:
+            quizCategory === "all" &&
+            item.assessments[0]?.category === "practice"
+              ? "white"
+              : color,
+          textTransform: "capitalize",
+        }}
+      >
+        {item.quizCategory}
+      </Text>
+      <FlatList
+        data={item.assessments}
+        horizontal
+        keyExtractor={(assessment) => assessment._id}
+        renderItem={renderAssessmentItem} // Updated function
+        showsHorizontalScrollIndicator={false}
+        style={{ marginVertical: 10, paddingLeft: 10 }}
+      />
+    </View>
+  );
+
+  const renderCategory = ({ item }: any) => (
+    <View style={{ marginBottom: 20 }}>
+      {/* <Text style={{ fontSize: 20, fontWeight: "bold", marginLeft: 10 }}>
+        {item.category === "live" ? "Live Quizzes" : "Practice Quizzes"}
+      </Text> */}
+      <FlatList
+        data={item.quizzes}
+        keyExtractor={(quiz) => quiz.quizCategory}
+        renderItem={renderQuizCategory}
+      />
+    </View>
+  );
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: "#A1CEDC", dark: "#1D3D47" }}
-      marginTopProp={70}
-      headerImage={
-        <Image
-          source={{
-            uri: "https://img.freepik.com/free-vector/world-map-with-global-technology-social-connection-network-with-nodes-links-vector-illustration_1284-1968.jpg?ga=GA1.1.563629714.1713778942&semt=ais_hybrid",
-          }}
-          style={styles.topImage}
-        />
-      }
-    >
-      <ThemedView style={styles.stepContainer}>
-        <Button
-          style={styles.button}
-          mode="contained"
-          textColor="#027bad"
-          onPress={() => setModalVisible(true)}
-        >
-          {selectedDifficulty === "medium"
-            ? "Medium"
-            : selectedDifficulty === "hard"
-            ? "Hard"
-            : selectedDifficulty === "easy"
-            ? "Easy"
-            : "Difficulty"}
-        </Button>
-
-        {/* Modal for selecting difficulty */}
-        {/* Button to open the difficulty selector */}
-
-        {/* Modal for selecting difficulty */}
-        <Modal
-          transparent={true}
-          animationType="fade"
-          visible={modalVisible}
-          onRequestClose={() => setModalVisible(false)}
-        >
-          <View style={styles.modalBackground}>
-            <View style={styles.modalContent}>
-              <TouchableOpacity
-                onPress={() => handleSelect("easy")}
-                style={styles.option}
-              >
-                <Text style={styles.optionText}>Easy</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleSelect("medium")}
-                style={styles.option}
-              >
-                <Text style={styles.optionText}>Medium</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleSelect("hard")}
-                style={styles.option}
-              >
-                <Text style={styles.optionText}>Hard</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleSelect("")}
-                style={styles.option}
-              >
-                <Text style={styles.optionText}>All</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-        <Button
-          textColor="#027bad"
-          mode="contained"
-          style={styles.button}
-          onPress={() => router.push("/reward")}
-        >
-          Reward
-        </Button>
-        {accessToken ? (
-          <Button
-            textColor="#027bad"
-            mode="contained"
-            style={styles.button}
-            onPress={logout}
-          >
-            Logout
-          </Button>
-        ) : (
-          <Button
-            textColor="#027bad"
-            mode="contained"
-            style={styles.button}
-            onPress={() => router.push("/login")}
-          >
-            Login
-          </Button>
-        )}
-      </ThemedView>
-      <Heading title="Category" />
-      <FlatList
-        data={categoryData}
-        renderItem={renderCategoryItem}
-        keyExtractor={(item) => item.title}
-        numColumns={3} // Adjust this number for the desired number of columns
-        // contentContainerStyle={styles.grid}
-        scrollEnabled={false}
-      />
-      <Heading
-        title={
-          quizCategory === "practice"
-            ? "Practice Quizzes"
-            : quizCategory === "live"
-            ? "Live Quizzes"
-            : "All Quizzes"
+    <Provider>
+      <SearchScrollView
+        statics={true}
+        headerHeight={320}
+        showQuizzes={showQuizzes}
+        showReward={showReward}
+        searchText={searchText}
+        setSearchText={setSearchText}
+        setShowQuizzes={setShowQuizzes}
+        setShowReward={setShowReward}
+        headerBackgroundColor={{ light: "#A1CEDC", dark: "#1D3D47" }}
+        marginTopProp={0}
+        headerImage={
+          <Image
+            source={require("../../assets/images/homePage.png")}
+            style={styles.topImage}
+          />
         }
-      />
-      <FlatList
-        data={quizData?.length > 0 ? quizData : []}
-        renderItem={renderQuizzItem}
-        keyExtractor={(item) => item._id}
-        numColumns={2} // Adjust this number for the desired number of columns
-        // contentContainerStyle={gridStyle.grid}
-        scrollEnabled={false}
-      />
-    </ParallaxScrollView>
+      >
+        {showQuizzes && <QuizDrawer open={showQuizzes} show={setShowQuizzes} />}
+        {showReward && <RewardDrawer open={showReward} show={setShowReward} />}
+
+        <View
+          style={{
+            paddingBottom: 55,
+            backgroundColor: "#fff",
+            // paddingTop: 35,
+          }}
+        >
+          <DifficultyComponent
+            handleSelect={handleSelect}
+            setModalVisible={setModalVisible}
+            modalVisible={modalVisible}
+            selectedDifficulty={selectedDifficulty}
+            buttonText={buttonText}
+          />
+          <View>
+            <FlatList
+              data={categoryData}
+              renderItem={renderCategoryItem}
+              keyExtractor={(item) => item.title}
+              numColumns={3} // Adjust this number for the desired number of columns
+              scrollEnabled={false}
+              style={{ marginLeft: 10 }}
+            />
+          </View>
+          {quizCategory !== "all" && (
+            <Heading
+              color="#111"
+              title={
+                quizCategory === "practice"
+                  ? "Practice Quizzes"
+                  : quizCategory === "live"
+                  ? "Live Quizzes"
+                  : ""
+              }
+            />
+          )}
+          {quizCategory !== "all" && quizData?.length > 0 && (
+            <FlatList
+              data={quizData?.length > 0 ? quizData : []}
+              renderItem={renderCategory}
+              keyExtractor={(item) => item._id}
+              numColumns={3} // Adjust this number for the desired number of columns
+              // contentContainerStyle={gridStyle.grid}
+              scrollEnabled={false}
+              style={{ paddingHorizontal: 10 }}
+            />
+          )}
+          {quizCategory === "all" && (
+            <>
+              <Heading color="#111" title={"Get Set Quizzy!"} />
+              <FlatList
+                data={
+                  isViewAll
+                    ? quizData.filter((data: any) => data.category === "live") // Show all quizzes if "View All" is clicked
+                    : quizData
+                        .filter((data: any) => data.category === "live")
+                        ?.slice(0, maxVisibleItems)
+                }
+                renderItem={renderCategory}
+                keyExtractor={(item) => item._id}
+                numColumns={3} // Adjust this number for the desired number of columns
+                scrollEnabled={false}
+                style={{ paddingHorizontal: 10 }}
+              />
+              {/* {(quizAllData?.live?.length>maxVisibleItems && isViewAll!=='live') && */}
+
+              {/* {!isViewAll && quizAllData?.live?.length > maxVisibleItems && (
+                <Button
+                  mode="text"
+                  textColor="black"
+                  onPress={() => setIsViewAll(true)} // Update state to show all items
+                >
+                  View All
+                </Button>
+              )} */}
+
+              <BannerComponent
+                data={
+                  statitics?.totalpointsCollected
+                    ? statitics.totalpointsCollected.toFixed()
+                    : 0
+                }
+              />
+              <LinearGradient
+                colors={[
+                  "#4A32AD", // Dark purple
+                  "#5F43D4", // Intermediate purple
+                  "#7B5CFC", // Lighter purple
+                  "#A389FF", // Soft light purple
+                  "#D4C7FF", // Very light purple
+                  "#FFFFFF", // White at the end
+               
+                ]}
+                locations={[0, 0.2, 0.4, 0.6, 0.8, 1]} // Evenly distribute gradient stops
+                start={{ x: 0, y: 0 }} // Start at the top
+                end={{ x: 0, y: 1 }} // End at the bottom
+                style={{ flex: 1 }} // Adjust to your design needs
+              >
+                <View
+                  style={{
+                    // backgroundColor: "black",
+                    paddingBottom: 65,
+                    paddingBlock: 50,
+                    // marginBottom: 10,
+                  }}
+                >
+                  {/* <Svg
+                    height="90"
+                    width="100%"
+                    style={styles.curveBottom}
+                    viewBox="0 0 100 15"
+                  >
+                    <Path
+                      d="M0,20 Q50,0 100,20"
+                      fill="#fff" // Replace with your desired background color
+                    />
+                  </Svg> */}
+                  <Heading title={"Practice Makes You a Quiz Champion!"} />
+
+                  <FlatList
+                    data={
+                      isViewAll
+                        ? quizData.filter(
+                            (data: any) => data.category === "practice"
+                          ) // Show all quizzes if "View All" is clicked
+                        : quizData
+                            .filter((data: any) => data.category === "practice")
+                            ?.slice(0, maxVisibleItems)
+                    }
+                    renderItem={renderCategory}
+                    keyExtractor={(item) => item._id}
+                    numColumns={3} // Adjust this number for the desired number of columns
+                    scrollEnabled={false}
+                    style={{ paddingHorizontal: 10 }}
+                  />
+                  <Svg
+                    height="54"
+                    width="100%"
+                    style={styles.curveTop}
+                    viewBox="0 0 100 15"
+                  >
+                    <Path
+                      d="M0,0 Q50,20 100,0"
+                      fill="#fff" // Replace with your desired background color
+                    />
+                  </Svg>
+                </View>
+              </LinearGradient>
+            </>
+          )}
+        </View>
+      </SearchScrollView>
+    </Provider>
   );
 }
 
 const styles = StyleSheet.create({
   stepContainer: {
-    flex: 1,
+    // flex: 1,
+    backgroundColor: "rgba(155, 131, 253, 0.5)",
     flexDirection: "row",
-    gap: 15,
-    marginTop: 10,
+    // gap: 10,
+    width: "95%",
+    // marginTop: 10,
+    top: 180,
+    zIndex: 10,
+    position: "absolute",
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 10,
+    borderColor: "#6846f3",
+  },
+  curveTop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
+  },
+  curveBottom: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
   },
   button: {
-    backgroundColor: "#ffbc38",
-    borderRadius: 4,
+    // backgroundColor: "#28a0f6",
+    display: "flex",
+    flex: 1,
+    gap: 1,
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    height: 50,
+    color: "white",
+    fontSize: 12,
+    width: "30%",
     textTransform: "capitalize",
   },
   topImage: {
-    height: 200,
+    height: 320,
     width: "100%",
     position: "absolute",
+    // borderRadius: 20,
+    zIndex: 1,
     bottom: 0,
     left: 0,
   },
 
   gridItem: {
-    flexBasis: "33.3%", // Ensures each item takes up 1/4 of the row width
+    // flexBasis: "33.3%", // Ensures each item takes up 1/4 of the row width
     flexGrow: 0, // Prevents items from expanding
-    padding: 10,
+    padding: 3,
+    display: "flex",
     alignItems: "center",
-    justifyContent: "flex-start",
-    borderRadius: 8,
+    justifyContent: "center",
+    borderRadius: 20,
     overflow: "hidden",
   },
   image: {
-    width: "70%", // Full width within the grid item
+    width: "60%", // Full width within the grid item
     aspectRatio: 1, // Keeps it square
   },
   itemText: {
     color: "#027bad",
     fontWeight: "700",
-    marginTop: 8,
+    marginTop: 0,
     textAlign: "center",
   },
 
   modalBackground: {
     flex: 1,
+    position: "relative",
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContent: {
-    backgroundColor: "white",
+    backgroundColor: "#1A1A24",
     padding: 20,
     borderRadius: 8,
     width: 250,
   },
   option: {
     paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ffbc38",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "darkGrey",
+    borderStyle: "dashed",
+  },
+  closeButton: {
+    position: "absolute",
+    top: 0,
+    // borderRadius:50,
+    // borderWidth:1,
+    // borderColor:'#027bad',
+    color: "#027bad",
+    right: 0,
   },
   optionText: {
     fontSize: 15,
-    color: "#027bad",
+    color: "#fff",
     textAlign: "center",
   },
 });
@@ -374,12 +587,17 @@ const styles = StyleSheet.create({
 const gridStyle = StyleSheet.create({
   pressable: {
     flex: 1,
+    borderRadius: 10,
+    padding: 5,
+    marginVertical: 5,
+    maxWidth: "33.3%",
   },
   gridItem: {
-    flexBasis: "50%", // Adjust based on desired column layout
+    flexBasis: "33.3%", // Adjust based on desired column layout
     flexGrow: 0,
-    padding: 10,
-    borderRadius: 12,
+
+    // padding: 10,
+    borderRadius: 15,
     overflow: "hidden",
   },
   image: {
@@ -401,7 +619,165 @@ const gridStyle = StyleSheet.create({
   itemText: {
     color: "#fff",
     fontWeight: "700",
-    fontSize: 16,
     textAlign: "center",
+  },
+});
+
+function DifficultyComponent({
+  handleSelect,
+  selectedDifficulty,
+  modalVisible,
+  setModalVisible,
+  buttonText,
+}: any) {
+  // const [modalVisible, setModalVisible] = useState(false);
+  return (
+    <>
+      <View style={DifficultyStyles.container}>
+        <View style={DifficultyStyles.wrapper}>
+          {/* SVG Shape */}
+          <Svg width="100%" height="100%" viewBox="0 0 100 12">
+            <Path
+              d="M0 0 L100 0 Q85 40 50 30 Q15 40 0 0 Z"
+              fill="rgba(128, 128, 128, 1)"
+              // stroke={'#6846f3'}
+              // strokeWidth={.5}
+            />
+          </Svg>
+
+          {/* Content inside the shape */}
+          <TouchableOpacity
+            onPress={() => setModalVisible(true)}
+            style={DifficultyStyles.content}
+          >
+            <Text style={DifficultyStyles.text}>
+              Level :{" "}
+              {selectedDifficulty === "medium"
+                ? "Medium"
+                : selectedDifficulty === "hard"
+                ? "Hard"
+                : selectedDifficulty === "easy"
+                ? "Easy"
+                : "All"}
+            </Text>
+            <View style={{ marginTop: 3 }}>
+              <Icon
+                source="chevron-down" // React Native Paper icon name
+                size={18} // Adjust size as needed
+                color="#fff" // Set icon color
+                // style={{color:'blue'}}
+                // style={DifficultyStyles.icon}
+              />
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
+      <Modal
+        transparent={true}
+        animationType="fade"
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalBackground}>
+          <View style={styles.modalContent}>
+            <IconButton
+              icon="close"
+              iconColor="#6846f3" // Use the 'close' icon from Material Community Icons
+              onPress={() => setModalVisible(false)} // Close the modal on press
+              style={styles.closeButton} // Optional: Add styles for positioning
+            />
+            <TouchableOpacity
+              onPress={() => handleSelect("")}
+              style={{ ...styles.option, marginTop: 10 }}
+            >
+              <Text
+                style={{
+                  ...styles.optionText,
+                  color: selectedDifficulty === "" ? "#6846f3" : "white",
+                }}
+              >
+                All
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleSelect("easy")}
+              style={styles.option}
+            >
+              <Text
+                style={{
+                  ...styles.optionText,
+                  color: selectedDifficulty === "easy" ? "#6846f3" : "white",
+                }}
+              >
+                Easy
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleSelect("medium")}
+              style={styles.option}
+            >
+              <Text
+                style={{
+                  ...styles.optionText,
+                  color: selectedDifficulty === "medium" ? "#6846f3" : "white",
+                }}
+              >
+                Medium
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleSelect("hard")}
+              style={styles.option}
+            >
+              <Text
+                style={{
+                  ...styles.optionText,
+                  color: selectedDifficulty === "hard" ? "#6846f3" : "white",
+                }}
+              >
+                Hard
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+}
+
+const DifficultyStyles = StyleSheet.create({
+  container: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    marginBottom: 20,
+  },
+  wrapper: {
+    width: "50%",
+    height: 30,
+    overflow: "hidden",
+    paddingTop: -4,
+    position: "relative", // Allows content to be positioned within the shape
+  },
+  content: {
+    position: "absolute", // Overlay on top of the SVG
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "row",
+  },
+  text: {
+    color: "white",
+    fontSize: 11,
+    marginTop: 2,
+    fontWeight: 600,
+    // marginBottom:2
+  },
+  icon: {
+    marginTop: 5, // Add space between text and icon
   },
 });

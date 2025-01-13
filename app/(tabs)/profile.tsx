@@ -6,48 +6,59 @@ import {
   Alert,
   Platform,
   ActionSheetIOS,
+  TouchableOpacity,
 } from "react-native";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
-import { IconButton, Text } from "react-native-paper";
+import { Button, Divider, IconButton, Text } from "react-native-paper";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import React from "react";
-import { FontAwesome, Ionicons, MaterialIcons } from "@expo/vector-icons";
+import React, { useEffect } from "react";
+import {
+  FontAwesome,
+  Ionicons,
+  MaterialCommunityIcons,
+  MaterialIcons,
+} from "@expo/vector-icons";
 import { useAuth } from "@/Context/AuthContext";
+import { getProfile, postProfile } from "@/Services/userService";
+import { BASE_URL } from "@/constants/config";
+import * as Sharing from "expo-sharing";
+import { Share } from "react-native";
+import * as SecureStore from "expo-secure-store";
 
 const settingsOptions = [
   {
     title: "Change Password",
-    icon: <Ionicons name="lock-closed-outline" size={24} color="black" />,
-    url: "/change-password",
+    icon: <Ionicons name="lock-closed-outline" style={{color:'#6846f3'}} size={24} color="black" />,
+    url: "/changePassword",
   },
   {
-    title: "Language",
-    icon: <Ionicons name="language-outline" size={24} color="black" />,
-    url: "/language",
+    title: "Leaderboard",
+    icon: <Ionicons name="language-outline" style={{color:'#6846f3'}} size={24} color="black" />,
+    url: "/overallRank",
   },
 ];
 
 const informationOption = [
   {
     title: "About App",
-    icon: <MaterialIcons name="info-outline" size={24} color="black" />,
-    url: "/about",
+    icon: <MaterialIcons name="info-outline" style={{color:'#6846f3'}} size={24} color="black" />,
+    url: "/handleLogin",
   },
   {
     title: "Terms & Conditions",
-    icon: <FontAwesome name="file-text-o" size={24} color="black" />,
+    icon: <FontAwesome name="file-text-o" style={{color:'#6846f3'}} size={24} color="black" />,
     url: "/terms-and-conditions",
   },
   {
     title: "Privacy Policy",
-    icon: <Ionicons name="shield-checkmark-outline" size={24} color="black" />,
+    icon: <Ionicons name="shield-checkmark-outline" style={{color:'#6846f3'}} size={24} color="black" />,
     url: "/privacy-policy",
   },
   {
     title: "Share This App",
-    icon: <Ionicons name="share-social-outline" size={24} color="black" />,
+    icon: <Ionicons name="share-social-outline" style={{color:'#6846f3'}} size={24} color="black" />,
     url: "/share",
   },
 ];
@@ -55,9 +66,26 @@ const informationOption = [
 export default function TabTwoScreen() {
   const router = useRouter();
 
-  const { userName} = useAuth();
+  const { userName, profile, setProfile, logout } = useAuth();
 
   const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
+  const [profileData, setProfileData] = React.useState<any>({});
+  const [change, setChange] = React.useState<boolean>(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const result = await getProfile();
+        if (result.data) {
+          setProfileData(result.data);
+          // await SecureStore.setItemAsync("profile", result.data.image);
+          setProfile(result.data.image);
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    })();
+  }, [change]);
 
   const openImagePicker = () => {
     if (Platform.OS === "ios") {
@@ -90,12 +118,61 @@ export default function TabTwoScreen() {
           { text: "Choose from Gallery", onPress: openGallery },
           {
             text: "Remove Current Picture",
-            onPress: () => setSelectedImage(""),
+            onPress: handleDeleteImage,
           },
           { text: "Cancel", style: "cancel" },
         ],
         { cancelable: true }
       );
+    }
+  };
+  const uriToFile = async (uri: any) => {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    // Get the file extension
+    const fileExtension = uri.split(".").pop();
+    const fileName = `profile.${fileExtension}`;
+
+    // Create a file-like object
+    return {
+      uri: uri,
+      name: fileName,
+      type: blob.type || "image/jpeg", // Default to 'image/jpeg' if type is not available
+    };
+  };
+
+  const handleDeleteImage = async () => {
+    try {
+      const formData = new FormData();
+
+      formData.append("type", "remove");
+      formData.append("image", null as any);
+      const response = await postProfile(formData);
+
+      if (response.message === "success") {
+        setChange(!change);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handleProfileChange = async (uri: any) => {
+    const file = await uriToFile(uri);
+
+    // Prepare FormData with the file as
+    const formData = new FormData();
+    formData.append("image", file as any);
+    formData.append("type", "add");
+
+    try {
+      const response = await postProfile(formData);
+
+      if (response.message === "success") {
+        setChange(!change);
+      }
+    } catch (error) {
+      console.log(error);
     }
   };
 
@@ -109,6 +186,7 @@ export default function TabTwoScreen() {
 
     if (!result.canceled) {
       setSelectedImage(result.assets[0].uri);
+      handleProfileChange(result.assets[0].uri);
     }
   };
 
@@ -121,11 +199,38 @@ export default function TabTwoScreen() {
 
     if (!result.canceled) {
       setSelectedImage(result.assets[0].uri);
+      handleProfileChange(result.assets[0].uri);
+    }
+  };
+
+  const shareAppLink = async () => {
+    const url = "https://expo.dev/@ujual.k/quizz"; 
+
+    try {
+      const result = await Share.share({
+        message: `Check out this app: ${url}`, // You can customize the message
+        url: url, // This is optional, but you can include the URL here
+      });
+
+      if (result.action === Share.sharedAction) {
+        if (result.activityType) {
+          // Shared with activity type of result.activityType
+          console.log("Shared with activity type:", result.activityType);
+        } else {
+          // Shared
+          console.log("Shared successfully");
+        }
+      } else if (result.action === Share.dismissedAction) {
+        // Dismissed
+        console.log("Share dismissed");
+      }
+    } catch (error) {
+      console.error("Error sharing the app:", error); // Log any errors that occur
     }
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: "white", marginTop: 70 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: "#1A1A24", marginTop: 0 }}>
       {/* <ThemedView style={styles.titleContainer}>
         <IconButton
           icon="chevron-left"
@@ -136,102 +241,133 @@ export default function TabTwoScreen() {
           Profile
         </ThemedText>
       </ThemedView> */}
+      <View style={{ marginBottom: 55 }}>
+        <ThemedView style={styles.profileContainer}>
+          <View style={styles.imageWrapper}>
+            <Image
+              source={{
+                uri: profileData?.image
+                  ? `${BASE_URL}/quiz/${profileData?.image}`
+                  : "https://static.vecteezy.com/system/resources/thumbnails/036/280/650/small_2x/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector.jpg",
+              }}
+              style={styles.profileImage}
+            />
+            <IconButton
+              icon="pencil"
+              size={20}
+              iconColor="white"
+              style={styles.editButton}
+              onPress={openImagePicker}
+            />
+          </View>
+          <Text
+            style={{ textAlign: "center", fontWeight: 700,color:'white' }}
+            variant="bodyLarge"
+          >
+            {profileData?.userName}
+          </Text>
+          <Text
+            style={{ textAlign: "center", color: "grey" }}
+            variant="bodyMedium"
+          >
+            {profileData?.class}
+          </Text>
+        </ThemedView>
+        <ProfileHeading title="Genaral Settings" />
+        {settingsOptions.map((data: any, index: any) => (
+          <TouchableOpacity onPress={() => router.push(data.url as any)}>
+            <View
+              key={index}
+              style={{
+                flex: 1,
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexDirection: "row",
+                marginVertical: 5,
+                paddingHorizontal: 20,
+              }}
+            >
+              <View
+                style={{
+                  display: "flex",
+                  gap: 20,
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
+                {data.icon}
+                <Text variant="bodyMedium" style={{color:'white'}}>{data.title}</Text>
+              </View>
+              <IconButton iconColor="white" icon="chevron-right"  size={24} />
+            </View>
+          </TouchableOpacity>
+        ))}
 
-      <ThemedView style={styles.profileContainer}>
-        <View style={styles.imageWrapper}>
-          <Image
-            source={{
-              uri:
-                selectedImage ||
-                "https://static.vecteezy.com/system/resources/thumbnails/036/280/650/small_2x/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector.jpg",
-            }}
-            style={styles.profileImage}
-          />
-          <IconButton
-            icon="pencil"
-            size={20}
-            iconColor="white"
-            style={styles.editButton}
-            onPress={openImagePicker}
-          />
-        </View>
-        <Text
-          style={{ textAlign: "center", fontWeight: 700 }}
-          variant="bodyLarge"
-        >
-          {userName}
-        </Text>
-        <Text
-          style={{ textAlign: "center", color: "grey" }}
-          variant="bodyMedium"
-        >
-          ABCD PUBLIC SCHOOL
-        </Text>
-      </ThemedView>
-      <ProfileHeading title="Genaral Settings" />
-      {settingsOptions.map((data: any, index: any) => (
-        <View
-          key={index}
-          style={{
-            flex: 1,
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexDirection: "row",
-            marginVertical: 5,
-            paddingHorizontal: 20,
-          }}
-        >
+        <ProfileHeading title="Information" />
+
+        {informationOption.map((data: any, index: any) => (
+          <TouchableOpacity
+            onPress={
+              data.title === "Share This App"
+                ? shareAppLink
+                : () => router.push(data.url as any)
+            }
+          >
+            <View
+              key={index}
+              style={{
+                flex: 1,
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexDirection: "row",
+                marginVertical: 5,
+                paddingHorizontal: 20,
+              }}
+            >
+              <View
+                style={{
+                  display: "flex",
+                  gap: 20,
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
+                {data.icon}
+                <Text variant="bodyMedium" style={{color:'white'}}>{data.title}</Text>
+              </View>
+              <IconButton iconColor="white" icon="chevron-right" size={24} />
+            </View>
+          </TouchableOpacity>
+        ))}
+        <Divider />
+        <TouchableOpacity onPress={logout}>
           <View
             style={{
-              display: "flex",
-              gap: 20,
-              flexDirection: "row",
+              flex: 1,
+              justifyContent: "space-between",
               alignItems: "center",
+              flexDirection: "row",
+              marginVertical: 5,
+              paddingHorizontal: 20,
             }}
           >
-            {data.icon}
-            <Text variant="bodyLarge">{data.title}</Text>
+            <View
+              style={{
+                display: "flex",
+                gap: 20,
+                flexDirection: "row",
+                alignItems: "center",
+              }}
+            >
+              <MaterialIcons name="logout" size={24} color="red" />{" "}
+              <Text variant="bodyLarge" style={{ color: "red" }}>
+                Logout
+              </Text>
+            </View>
+            <IconButton icon="chevron-right" size={24} iconColor="red" />
           </View>
-          <IconButton
-            icon="chevron-right"
-            size={24}
-            onPress={() => router.push("/" as any)}
-          />
-        </View>
-      ))}
-
-      <ProfileHeading title="Information" />
-
-      {informationOption.map((data: any, index: any) => (
-        <View
-          key={index}
-          style={{
-            flex: 1,
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexDirection: "row",
-            marginVertical: 5,
-            paddingHorizontal: 20,
-          }}
-        >
-          <View
-            style={{
-              display: "flex",
-              gap: 20,
-              flexDirection: "row",
-              alignItems: "center",
-            }}
-          >
-            {data.icon}
-            <Text variant="bodyLarge">{data.title}</Text>
-          </View>
-          <IconButton
-            icon="chevron-right"
-            size={24}
-            onPress={() => router.push("/" as any)}
-          />
-        </View>
-      ))}
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 }
@@ -240,13 +376,13 @@ function ProfileHeading({ title }: any) {
   return (
     <View
       style={{
-        backgroundColor: "#ffbc38",
+        backgroundColor: "#6846f3",
         padding: 12,
         paddingLeft: 20,
         marginVertical: 10,
       }}
     >
-      <Text style={{ color: "#111", fontWeight: 700 }}>{title}</Text>
+      <Text style={{ color: "#fff", fontWeight: 600 }}>{title}</Text>
     </View>
   );
 }
@@ -276,7 +412,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 10,
+    marginTop: 30,
+    backgroundColor:'#1A1A24'
   },
   imageWrapper: {
     position: "relative",
@@ -287,6 +424,20 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     justifyContent: "center",
     gap: 10,
+  },
+  button: {
+    width: "100%", // Full width
+    justifyContent: "flex-start", // Align text to the left
+  },
+  buttonContent: {
+    flexDirection: "row", // Align icon and text in a row
+    alignItems: "center", // Center vertically
+  },
+  buttonLabel: {
+    marginLeft: 8, // Space between icon and text
+  },
+  icon: {
+    marginRight: 8, // Space between icon and text
   },
   profileImage: {
     width: "100%",

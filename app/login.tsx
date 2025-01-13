@@ -1,15 +1,29 @@
-import { StyleSheet, ScrollView, View, Text, Dimensions } from "react-native";
+import {
+  StyleSheet,
+  ScrollView,
+  View,
+  Dimensions,
+  BackHandler,
+  Image,
+} from "react-native";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
-import { Button, HelperText, TextInput } from "react-native-paper";
+import {
+  Button,
+  HelperText,
+  TextInput,
+  DefaultTheme,
+  Text,
+} from "react-native-paper";
 import React, { useEffect, useState } from "react";
 import { useColorScheme } from "@/hooks/useColorScheme.web";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { loginUser } from "@/Services/userService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Toast from "react-native-root-toast";
 import { useAuth } from "@/Context/AuthContext";
 import GoogleLogin from "@/components/GoogleLogin";
+import * as SecureStore from "expo-secure-store";
 
 const { width, height } = Dimensions.get("window");
 const scaleFont = (size: any) => (width / 375) * size;
@@ -17,7 +31,6 @@ const scaleFont = (size: any) => (width / 375) * size;
 export default function Login() {
   const mode = useColorScheme();
   const router = useRouter();
-  const { token, name } = useLocalSearchParams();
   const { setAccessToken, setUserName, loading } = useAuth();
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
@@ -26,27 +39,23 @@ export default function Login() {
   const [loadings, setLoading] = useState(false);
   const [isPasswordVisible, setPasswordVisible] = useState(false);
 
-  useEffect(() => {
-    const handleNavigation = async () => {
-      if (token && name) {
-        // Save token and username
-        await AsyncStorage.setItem("accessToken", token as string);
-        await AsyncStorage.setItem("userName", name as string);
-        setAccessToken(token as string);
-        setUserName(name as string);
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        // Prevent back navigation
+        return true; // Returning true prevents back navigation
+      };
 
-        // Show success message
-        Toast.show(`Welcome Back ${name}`, {
-          duration: Toast.durations.LONG,
-        });
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        onBackPress
+      );
 
-        // Ensure navigation happens after saving
-        router.push("/" as any);
-      }
-    };
-
-    handleNavigation(); // Call the function to manage async/await properly
-  }, [token, name, setAccessToken, setUserName, router]);
+      return () => {
+        subscription.remove(); // Cleanup on unmount
+      };
+    }, [])
+  );
 
   // Validation functions
   const validateEmail = (email: string) => {
@@ -55,7 +64,8 @@ export default function Login() {
   };
 
   const validatePassword = (password: string) => {
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{6,}$/;
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d!@#$%^&*()_+={}\[\]:;"'<>,.?/\\|`~-]{6,}$/;
     return passwordRegex.test(password);
   };
 
@@ -67,8 +77,12 @@ export default function Login() {
 
         if (response.message === "Login Success") {
           console.log("Login successful, token:", response.token);
-          await AsyncStorage.setItem("accessToken", response.token);
-          await AsyncStorage.setItem("userName", response.name);
+          await SecureStore.setItemAsync("accessToken", response.token);
+          await SecureStore.setItemAsync("refreshToken", response.refreshToken);
+          await SecureStore.setItemAsync("userName", response.name);
+          if (response.image) {
+            await SecureStore.setItemAsync("profile", response?.image);
+          }
           setAccessToken(response.token);
           setUserName(response.name);
 
@@ -122,28 +136,29 @@ export default function Login() {
   const styles = StyleSheet.create({
     container: {
       flex: 1,
-    //   backgroundColor: isDarkMode ? "#000000" : "#FFFFFF",
-      backgroundColor: "#ffbc38",
+      //   backgroundColor: isDarkMode ? "#000000" : "#FFFFFF",
+      backgroundColor: "#1A1A24",
     },
     contentContainer: {
       flexGrow: 1,
-      justifyContent: "center",
+      justifyContent: "space-between",
+      marginBlock:40,
       alignItems: "center",
-      padding: width * 0.04,
+      // padding: width * 0.04,
     },
     titleContainer: {
       flexDirection: "column",
       justifyContent: "center",
       alignItems: "center",
-      backgroundColor:'transparent',
+      backgroundColor: "transparent",
       marginBottom: height * 0.04,
     },
     inputContainer: {
       width: "90%",
       paddingHorizontal: width * 0.03,
-      marginBottom: height * 0.02,
-      borderRadius:30
-    },  
+      // marginBottom: height * 0.02,
+      borderRadius: 30,
+    },
     errorText: {
       color: "red",
       fontSize: scaleFont(12),
@@ -151,15 +166,17 @@ export default function Login() {
       marginBottom: 10,
     },
     textInput: {
-      backgroundColor: isDarkMode ? "#333333" : "#FFFFFF",
+      backgroundColor: "transparent",
       fontSize: scaleFont(16),
-      borderColor:'#027bad',
-      borderRadius:30,
+      borderColor: "#6846f3",
+      borderRadius: 10,
+      color: "white",
+      height:50
 
     },
     buttonContent: {
       flexDirection: "row-reverse",
-      backgroundColor: "#027bad",
+      backgroundColor: "#6846f3",
     },
     buttonLabel: {
       fontSize: scaleFont(16),
@@ -174,24 +191,34 @@ export default function Login() {
     >
       <View style={{ width: "100%", alignItems: "center" }}>
         <ThemedView style={styles.titleContainer}>
-          <ThemedText type="subtitle" style={{ color: "#027bad" }}>
-            Welcome back
-          </ThemedText>
-          <ThemedText type="default" style={{ fontSize: 13 }}>
+          {/* <ThemedText type="title" style={{ color: "#027bad",marginBottom:30 }}>
+            HYPER
+          </ThemedText> */}
+          <Image
+            source={require("../assets/images/hyperlogo.png")}
+            style={{ height: 150, width: 150 }}
+          />
+
+          <ThemedText type="default" style={{ fontSize: 13, color: "white" }}>
             Login to your account
           </ThemedText>
         </ThemedView>
 
         <View style={styles.inputContainer}>
           <TextInput
-            label="Email"
+            // label="Email"
+            placeholder="Email"
+            placeholderTextColor={"white"}
+            textColor="white"
+            theme={{ roundness: 20 }}
             value={email}
             mode="outlined"
             onChangeText={handleEmailChange}
             keyboardType="email-address"
             autoCapitalize="none"
             style={styles.textInput}
-            right={<TextInput.Icon color={"#027bad"} icon="email" />}
+            contentStyle={{ borderRadius: 30 }}
+            right={<TextInput.Icon color={"#6846f3"} icon="email" />}
           />
           <HelperText type="error" visible={!!emailError}>
             {emailError}
@@ -200,15 +227,19 @@ export default function Login() {
 
         <View style={styles.inputContainer}>
           <TextInput
-            label="Password"
+            // label="Password"
+            placeholder="Password"
+            placeholderTextColor={"white"}
+            textColor="white"
             value={password}
+            theme={{ roundness: 20 }}
             mode="outlined"
             onChangeText={handlePasswordChange}
             secureTextEntry={!isPasswordVisible} // Toggle visibility
-            style={styles.textInput}
+            style={{ ...styles.textInput, borderRadius: 10 }}
             right={
               <TextInput.Icon
-                color={"#027bad"}
+                color={"#6846f3"}
                 icon={isPasswordVisible ? "eye-off" : "eye"} // Change icon based on state
                 onPress={() => setPasswordVisible(!isPasswordVisible)} // Toggle state
               />
@@ -219,35 +250,39 @@ export default function Login() {
           </HelperText>
         </View>
 
-        <View style={styles.inputContainer}>
+        <View style={{...styles.inputContainer,marginBottom:15}}>
           <Button
             icon="arrow-right"
             mode="contained"
             onPress={handleLogin}
             contentStyle={styles.buttonContent}
-            disabled={!validateEmail(email) || !validatePassword(password)}
+            // disabled={!validateEmail(email) || !validatePassword(password)}
             loading={loadings} // Show spinner when loading
           >
             {loadings ? "Signing In..." : "Sign In"}
           </Button>
         </View>
+        <View style={{display:'flex',justifyContent:'center',alignItems:'center',gap:4,width:'100%',flexDirection:'row',marginBottom:15}}>
+          <View style={{width:'35%',height:1,backgroundColor:'grey'}}/>
+          <ThemedText type="default" style={{ fontSize: 12, color: "grey" }}>
+            OR
+          </ThemedText>
+          <View style={{width:'35%',height:1,backgroundColor:'grey'}}/>
+        </View>
         <View style={styles.inputContainer}>
-          <GoogleLogin name="Login with google" />
+          <GoogleLogin name="Login with  " />
         </View>
 
         <View style={styles.inputContainer}>
-          <Button mode="text" onPress={handleSignup} textColor="#111">
+          <Button mode="text" onPress={handleSignup} textColor="grey">
             Don't have an account?{" "}
-            <Text style={{ color: "#027bad" }}>Sign up</Text>
-          </Button>
-          <Button
-            mode="text"
-            onPress={() => router.push("/" as any)}
-            textColor="#111"
-          >
-            home
+            <Text style={{ color: "#6846f3" }}>Sign up</Text>
           </Button>
         </View>
+      </View>
+      <View style={{display:'flex',flexDirection:'column',gap:5,alignItems:'center'}}>
+       <Text style={{color:'grey'}} variant="bodySmall" >By continuing, you agree to our </Text>
+       <Text style={{color:'#6846f3'}} variant="bodySmall" >Terms of Use <Text variant="bodySmall" style={{color:'grey'}}>&</Text> Privacy policy </Text>
       </View>
     </ScrollView>
   );

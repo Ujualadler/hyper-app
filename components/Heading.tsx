@@ -3,13 +3,14 @@ import { View } from "react-native";
 import { Text } from "react-native-paper";
 
 type headingProps = {
-   title:string
+   title:string,
+   color?:string
 }
 
 
   
 
-function Heading({title}:headingProps) {
+function Heading({title,color}:headingProps) {
   return (
     <View
       style={{
@@ -18,14 +19,16 @@ function Heading({title}:headingProps) {
         flexDirection: "row",
         alignItems: "center",
         gap: 10,
-        justifyContent: "center",
+        // justifyContent: "center",
+        marginLeft:5,
         paddingHorizontal: 10,
-        marginVertical:20   
+        marginTop:20,
+        marginBottom:20,   
       }}
     >
-      <View style={{ width: "40%", height: 2, backgroundColor: "black" }} />
-      <Text style={{fontWeight:700}} variant="bodyMedium">{title}</Text>
-      <View style={{ width: "40%", height: 2, backgroundColor: "black" }} />
+      {/* <View style={{ width: "50%", height: 2, backgroundColor:color?color: "transparent" }} /> */}
+      <Text style={{fontWeight:700,color:color?color:'white',textAlign:'center'}} variant="bodyLarge">{title}</Text>
+      {/* <View style={{ width: "50%", height: 2, backgroundColor:color?color: "transparent"  }} /> */}
     </View>
   );
 }

@@ -16,8 +16,14 @@ import { useAuth } from "@/Context/AuthContext";
 import * as Haptics from "expo-haptics";
 import { ScrollView } from "react-native-gesture-handler";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
+import { useFocusEffect } from "expo-router";
+import { usePreventScreenCapture } from 'expo-screen-capture';  
+import { BASE_URL } from "@/constants/config";
+
 
 const Quiz: React.FC = () => {
+  usePreventScreenCapture();  
+
   const { id } = useLocalSearchParams();
   const { userName } = useAuth();
   const router = useRouter();
@@ -29,7 +35,9 @@ const Quiz: React.FC = () => {
   const [markData, setMarkData] = useState<any>("");
   const [assessmentId, setAssessmentid] = useState<string>("");
   const [totalTime, setTotalTime] = useState<number>(0);
-  const [difficulty, setDifficulty] = useState<string>('');
+  const [difficulty, setDifficulty] = useState<string>("");
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [lastQuestion, setLastQuestion] = useState(false);
 
   // Timer state
   const [timer, setTimer] = useState<number | null>(null); // Timer starts as null
@@ -45,19 +53,28 @@ const Quiz: React.FC = () => {
 
   console.log(totalTime);
 
-  useEffect(() => {
-    const backHandler = BackHandler.addEventListener(
-      "hardwareBackPress",
-      () => true // Prevent back navigation
-    );
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        // Prevent back navigation
+        return true; // Returning true prevents back navigation
+      };
 
-    return () => backHandler.remove(); // Cleanup on unmount
-  }, []);
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        onBackPress
+      );
 
-  useEffect(() => {
+      return () => {
+        subscription.remove(); // Cleanup on unmount
+      };
+    }, [])
+  );
+
+  useEffect(() => { 
     const fetchQuiz = async () => {
       try {
-        const response = await getQuiz(id as any,'normal');
+        const response = await getQuiz(id as any, "normal");
         setQuizData(response);
         setAssessmentid(response._id);
         setDifficulty(response.difficulty);
@@ -104,21 +121,33 @@ const Quiz: React.FC = () => {
       }, 1000);
 
       return () => clearInterval(intervalId);
-    } else if (timer === 0) {
+    } else if (
+      timer === 0 ||
+      responses[quizData?.questions[currentQuestionIndex]?._id]
+    ) {
       if (currentQuestionIndex < quizData.questions.length - 1) {
-        console.log(
-          "Switching to Next Question. Current Index:",
-          currentQuestionIndex
-        );
         setCurrentQuestionIndex((prevIndex) => prevIndex + 1);
         setTimer(null); // Reset timer for the next question
       } else if (currentQuestionIndex === quizData.questions.length - 1) {
         console.log("Submitting Quiz...");
+        
+        handleSubmit();
         setShowTimer(false);
-        handleSubmit(); // Submit only on the last question
+      // Submit only on the last question
       }
     }
-  }, [timer, currentQuestionIndex, quizData]);
+  }, [timer, currentQuestionIndex, quizData, responses]);
+
+  useEffect(()=>{
+
+    if(quizData && currentQuestionIndex === quizData?.questions?.length - 1){
+      handleSubmit();
+      setShowTimer(false);
+    }
+    
+  },[lastQuestion])
+
+  console.log(quizData)
 
   const handleResponseChange = (type: string, value: any, option?: string) => {
     if (!currentQuestion) return;
@@ -130,6 +159,7 @@ const Quiz: React.FC = () => {
 
     setTotalTime((prev: any) => prev + timeTaken); // Accumulate the total time
     setQuestionStartTime(currentTime);
+
 
     setResponses((prev) => {
       const updatedResponse = { ...prev[currentQuestion._id] };
@@ -145,11 +175,23 @@ const Quiz: React.FC = () => {
 
       return { ...prev, [currentQuestion._id]: updatedResponse };
     });
+
+    if (currentQuestionIndex === quizData?.questions.length - 1) {
+      console.log(responses)
+      setLastQuestion(true)
+    } else if (currentQuestionIndex < quizData?.questions.length - 1 ) {
+      
+      setCurrentQuestionIndex((prevIndex) => prevIndex + 1);
+      setTimer(null); // Reset timer for next question
+    }
   };
 
   const handleSubmit = async () => {
+    if (hasSubmitted) return; // Prevent multiple submissions
+  
+    setHasSubmitted(true); // Set the flag to true to indicate submission has occurred
     setStartAssessment("loading");
-
+    
     // Transform responses into the required answers array format
     const answers = Object.entries(responses).map(([questionId, value]) => ({
       questionId, // Question ID from the key
@@ -157,7 +199,6 @@ const Quiz: React.FC = () => {
     }));
 
     try {
-     
       const result = await submitAnswers({
         quizId: assessmentId, // Pass the assessment ID
         totalTime: totalTime,
@@ -174,6 +215,7 @@ const Quiz: React.FC = () => {
       console.error("Error submitting assessment:", error);
       //   toast.error("There was an error submitting the assessment."); // Show a toast notification
       //   setStartAssessment("error");
+      console.log(error);
     }
   };
 
@@ -195,14 +237,14 @@ const Quiz: React.FC = () => {
   }
 
   return (
-   <ParallaxScrollView
+    <ParallaxScrollView
       headerBackgroundColor={{ light: "#A1CEDC", dark: "#1D3D47" }}
       marginTopProp={0}
       background="#ffbc38"
       headerImage={
         <Image
           source={{
-            uri: "https://img.freepik.com/free-vector/multicolored-flowing-figure-neon-style_74855-1425.jpg?ga=GA1.1.563629714.1713778942&semt=ais_hybrid",
+            uri:quizData.image?`${BASE_URL}/quiz/${quizData?.image}` :"https://img.freepik.com/free-vector/multicolored-flowing-figure-neon-style_74855-1425.jpg?ga=GA1.1.563629714.1713778942&semt=ais_hybrid",
           }}
           style={styles.topImage}
         />

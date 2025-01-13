@@ -3,15 +3,16 @@ import { StyleSheet, View } from "react-native";
 import { Button } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as WebBrowser from "expo-web-browser";
+import { BASE_URL } from "@/constants/config";
 
 export default function GoogleLogin({ name }: any) {
-  const BACKEND_GOOGLE_LOGIN_URL = "http://localhost:4000/auth/google";
+  const BACKEND_GOOGLE_LOGIN_URL = `${BASE_URL}/auth/google`;
 
   return (
     <View style={styles.container}>
       <Button
         style={styles.button}
-        textColor="#027bad"
+        textColor="#6846f3"
         contentStyle={styles.content}
         icon={({ size, color }) => (
           <MaterialCommunityIcons name="google" size={size} color={color} />
@@ -31,7 +32,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   button: {
-    borderColor: "#027bad",
+    borderColor: "#6846f3",
     borderWidth: 1,
   },
   content: {

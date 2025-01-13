@@ -1,17 +1,15 @@
 
+import { api } from "@/config/api";
 import { BASE_URL } from "@/constants/config";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios, { AxiosError } from "axios";
+import * as SecureStore from "expo-secure-store";
+
 
 // Set the base URL for your API dynamically from environment variables
-const API_URL = process.env.REACT_APP_API_URL || BASE_URL;
 
-// Configure Axios instance with default settings
-const api = axios.create({
-  baseURL: API_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+
+
 
 // Define an interface for the expected response data
 interface ApiResponse {
@@ -55,7 +53,9 @@ export const signUpUser = async (
 interface LoginResponse {
   token: string;
   name: string;
+  refreshToken:string;
   message: string;
+  image:string;
 }
 
 export const loginUser = async (
@@ -63,7 +63,7 @@ export const loginUser = async (
   password: string
 ): Promise<LoginResponse> => {
   try {
-    const response = await axios.post<LoginResponse>(`${API_URL}/login`, {
+    const response = await api.post<LoginResponse>(`/login`, {
       userEmail: email,
       userPassword: password,
     });
@@ -73,3 +73,47 @@ export const loginUser = async (
     throw new Error("Failed to login. Please check your credentials.");
   }
 };
+export const getProfile = async (
+): Promise<any> => {
+  try {
+    const response = await api.get(`/user/profile`);
+    return response.data;
+  } catch (error) {
+    console.error("Error getting profile:", error);
+  }
+};
+
+export const postProfile = async (formData: any): Promise<any> => {
+  try {
+    const token = await SecureStore.getItemAsync("accessToken");
+
+
+
+    const response = await axios.post(`${BASE_URL}/user/profile`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        'Authorization': `Bearer ${token}`,
+      },
+      transformRequest: (data, headers) => {
+        return data; // this is doing the trick
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error posting profile:", error);
+    throw new Error(error as any);
+  }
+};
+
+
+export const changePassword = async (currentPassword:string,newPassword:string
+): Promise<any> => {
+  try {
+    const response = await api.post(`/changePassword`,{newPassword,currentPassword});
+    return response.data;
+  } catch (error) {
+    console.error("Error while chnaging password:", error);
+  }
+};
+
+
